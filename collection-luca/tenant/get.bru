@@ -1,0 +1,22 @@
+meta {
+  name: get
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/tenants
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name":"Hitzu Labs"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

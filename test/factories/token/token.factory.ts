@@ -4,7 +4,7 @@ import { faker } from '@faker-js/faker';
 import { Factory } from '@jorgebodega/typeorm-factory';
 import { Token } from '../../../src/tokens/entities/token.entity';
 import { TOKEN_TYPE } from '../../../src/common/types/token-type';
-import { Operator } from '../../../src/users/entities/operator.entity';
+import type { User } from '../../../src/users/entities/user.entity';
 
 export class TokenFactory extends Factory<Token> {
   protected entity = Token;
@@ -19,16 +19,16 @@ export class TokenFactory extends Factory<Token> {
     return {
       token: faker.string.alphanumeric(100),
       type: faker.helpers.arrayElement<TOKEN_TYPE>(Object.values(TOKEN_TYPE)),
-      // operator should be provided via makeForOperator or createForOperator methods
+      // user should be provided via makeForUser/createForUser
     };
   }
 
   /**
-   * Creates a token with a specific operator
+   * Creates a token with a specific user (in-memory only)
    */
-  async makeForOperator(operator: Operator, type?: TOKEN_TYPE): Promise<Token> {
+  async makeForUser(user: User, type?: TOKEN_TYPE): Promise<Token> {
     return this.make({
-      operator,
+      user,
       type:
         type ||
         faker.helpers.arrayElement<TOKEN_TYPE>(Object.values(TOKEN_TYPE)),
@@ -36,13 +36,20 @@ export class TokenFactory extends Factory<Token> {
   }
 
   /**
-   * Creates and persists a token for a specific operator
+   * Creates and persists a token for a specific user
    */
-  async createForOperator(
-    operator: Operator,
-    type?: TOKEN_TYPE,
-  ): Promise<Token> {
-    const token = await this.makeForOperator(operator, type);
+  async createForUser(user: User, type?: TOKEN_TYPE): Promise<Token> {
+    const token = await this.makeForUser(user, type);
     return this.dataSource.getRepository(Token).save(token);
+  }
+
+  /**
+   * Backwards-compatible alias (older tests may still call these).
+   */
+  async makeForOperator(operator: User, type?: TOKEN_TYPE): Promise<Token> {
+    return this.makeForUser(operator, type);
+  }
+  async createForOperator(operator: User, type?: TOKEN_TYPE): Promise<Token> {
+    return this.createForUser(operator, type);
   }
 }

@@ -1,0 +1,29 @@
+meta {
+  name: signup
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/auth/signup
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tenantId": 1,
+    "role": "admin",
+    "fullName": "Roberto Torres 1",
+    
+    "email": "robert.torres.lopez+1@gmail.com",
+    "password": "password",
+    "phone": "2221101495",
+    "role": "ADMIN"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

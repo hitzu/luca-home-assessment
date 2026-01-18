@@ -7,7 +7,13 @@ import { USER_ROLES } from '../../../src/common/types/user-roles.type';
 import { USER_STATUS } from '../../../src/common/types/user-status.type';
 import { User } from '../../../src/users/entities/user.entity';
 
-export class OperatorFactory extends Factory<User> {
+/**
+ * Factory for `User` records.
+ *
+ * Note: This file previously exported `OperatorFactory` but the current domain
+ * uses `User`. We keep `OperatorFactory` as a backwards-compatible alias.
+ */
+export class UserFactory extends Factory<User> {
   protected entity = User;
   protected dataSource: DataSource;
 
@@ -40,3 +46,6 @@ export class OperatorFactory extends Factory<User> {
     });
   }
 }
+
+// Backwards-compatible alias (some older tests may still reference "Operator")
+export class OperatorFactory extends UserFactory {}
