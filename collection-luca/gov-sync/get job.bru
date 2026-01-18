@@ -1,0 +1,26 @@
+meta {
+  name: get job
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/tenants/{{tenantId}}/gov-sync/jobs/{{jobId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+vars {
+  tenantId: Tenant1
+  jobId: 1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

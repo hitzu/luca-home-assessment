@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Params } from 'nestjs-pino';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export const getLoggerConfigs = (): Params => {
   const isProduction = process.env.NODE_ENV === 'prod';
@@ -10,7 +10,7 @@ export const getLoggerConfigs = (): Params => {
   return {
     pinoHttp: {
       level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
-      genReqId: (req) => req.headers['x-request-id'] || uuidv4(),
+      genReqId: (req) => req.headers['x-request-id'] || randomUUID(),
 
       transport: isDevelopment
         ? {

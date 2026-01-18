@@ -107,7 +107,7 @@ Each entry lists the request method and path present in Bruno; these are conside
 
 ### E2E
 
-- `test/app.e2e-spec.ts` (controller/e2e): `GET /` returns 200 "Hello World!".
+- Integration tests live under `src/**/*.spec.ts` and run via `pnpm test`.
 
 ## 4. Coverage matrix (critical flows)
 

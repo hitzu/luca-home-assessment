@@ -1,0 +1,32 @@
+meta {
+  name: get jobs
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/tenants/:tenantId/gov-sync/jobs/1
+  body: json
+  auth: inherit
+}
+
+params:path {
+  tenantId: 
+}
+
+headers {
+  authorization: Bearer DEV.v1.Tenant1.5.ADMIN.1768716089
+}
+
+body:json {
+  { "periodId":"2025-Q1" }
+}
+
+vars:pre-request {
+  tenantId: 1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

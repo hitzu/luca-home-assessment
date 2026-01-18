@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { EXCEPTION_RESPONSE } from 'src/config/errors/exception-response.config';
+import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
 import { LoginDto } from './dto/login.dto';
 import { UsersService } from '../users/users.service';
 import { DevLoginResponseDto } from './dto/dev-login-response.dto';

@@ -1,0 +1,31 @@
+meta {
+  name: create job
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/tenants/{{tenantId}}/gov-sync/jobs
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "periodId": "2025-Q1"
+  }
+}
+
+vars {
+  tenantId: Tenant1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
