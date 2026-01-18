@@ -1,19 +1,16 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { DecodedTokenDto } from '../../tokens/dto/decode-token.dto';
-
-interface AuthenticatedRequest extends Request {
-  user: DecodedTokenDto;
-}
+import type { AuthUserContext } from '../types/auth-user-context';
+import type { AuthenticatedRequest } from '../types/authenticated-request';
 
 /**
  * Decorator to extract the authenticated user from the request.
  *
  * @param property - Optional property name to extract from the user object
- * @returns The full DecodedTokenDto or a specific property value
+ * @returns The full AuthUserContext or a specific property value
  *
  * @example
  * // Get the full user object
- * findAll(@User() user: DecodedTokenDto) { ... }
+ * findAll(@User() user: AuthUserContext) { ... }
  *
  * @example
  * // Get a specific property
@@ -24,15 +21,15 @@ interface AuthenticatedRequest extends Request {
  * findAll(@User('email') email: string) { ... }
  */
 export const AuthUser = createParamDecorator(
-  <K extends keyof DecodedTokenDto>(
+  <K extends keyof AuthUserContext>(
     data: K | undefined,
     context: ExecutionContext,
-  ): DecodedTokenDto | DecodedTokenDto[K] => {
+  ): AuthUserContext | AuthUserContext[K] => {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const user = request.user;
+    const user = request.authUser;
 
     if (!user) {
-      return undefined as unknown as DecodedTokenDto | DecodedTokenDto[K];
+      return undefined as unknown as AuthUserContext | AuthUserContext[K];
     }
 
     return data ? user[data] : user;

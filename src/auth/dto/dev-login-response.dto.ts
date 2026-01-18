@@ -4,7 +4,7 @@ import type { DevTokenRole } from '../guards/dev-token.guard';
 
 export class DevLoginResponseDto {
   @ApiProperty({
-    example: 'DEV.v1.tenant-123.42.OPERATOR.1733472000',
+    example: 'DEV.v1.Tenant1.42.TEACHER.1733472000',
     description: 'Dev-only token. NOT for production use.',
   })
   @IsString()
@@ -22,10 +22,10 @@ export class DevLoginResponseDto {
   tenantId!: number;
 
   @ApiProperty({
-    example: 'OPERATOR',
-    enum: ['OPERATOR', 'MANAGER', 'ADMIN'],
+    example: 'ADMIN',
+    enum: ['TEACHER', 'PRINCIPAL', 'ADMIN'],
   })
   @IsString()
-  @IsIn(['OPERATOR', 'MANAGER', 'ADMIN'])
+  @IsIn(['TEACHER', 'PRINCIPAL', 'ADMIN'])
   role!: DevTokenRole;
 }

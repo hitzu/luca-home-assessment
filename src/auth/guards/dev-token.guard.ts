@@ -6,23 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { TokenService } from '../../tokens/token.service';
+import type { AuthenticatedRequest } from '../types/authenticated-request';
+import type { AuthUserContext, AuthUserRole } from '../types/auth-user-context';
+import { parseDevToken } from '../utils/parse-dev-token';
 
 // Lightweight dev-only guard: parses a simple dev token and attaches it to the request.
-export type DevTokenRole = 'TEACHER' | 'PRINCIPAL' | 'ADMIN';
-
-export interface DevTokenPayload {
-  tenantId: number;
-  userId: number;
-  role: DevTokenRole;
-  issuedAt: number;
-}
-
-const DEV_TOKEN_PREFIX = 'DEV';
-const DEV_TOKEN_VERSION = 'v1';
-const DEV_TOKEN_ROLES: DevTokenRole[] = ['TEACHER', 'PRINCIPAL', 'ADMIN'];
+export type DevTokenRole = AuthUserRole;
 
 @Injectable()
 export class DevTokenGuard implements CanActivate {
@@ -45,7 +36,7 @@ export class DevTokenGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user?: DevTokenPayload }>();
+      .getRequest<AuthenticatedRequest>();
 
     const authHeader = request.headers.authorization;
     if (!authHeader) {
@@ -59,36 +50,13 @@ export class DevTokenGuard implements CanActivate {
       throw new UnauthorizedException('Bearer token required');
     }
 
-    const parts = rawToken.split('.');
-    if (parts.length !== 6) {
-      this.logger.warn('Dev token has invalid segment count');
+    let authUser: AuthUserContext;
+    try {
+      authUser = parseDevToken(rawToken);
+    } catch (error) {
+      this.logger.warn({ error }, 'Dev token parsing failed');
       throw new UnauthorizedException('Invalid dev token format');
     }
-
-    const [prefix, version, tenantId, userId, role, timestamp] = parts;
-
-    if (prefix !== DEV_TOKEN_PREFIX || version !== DEV_TOKEN_VERSION) {
-      this.logger.warn('Dev token prefix/version invalid');
-      throw new UnauthorizedException('Invalid dev token prefix or version');
-    }
-
-    if (!DEV_TOKEN_ROLES.includes(role as DevTokenRole)) {
-      this.logger.warn('Dev token role not allowed');
-      throw new UnauthorizedException('Invalid dev token role');
-    }
-
-    const issuedAt = Number(timestamp);
-    if (Number.isNaN(issuedAt)) {
-      this.logger.warn('Dev token timestamp is not a number');
-      throw new UnauthorizedException('Invalid dev token timestamp');
-    }
-
-    const payload: DevTokenPayload = {
-      tenantId: Number(tenantId),
-      userId: Number(userId),
-      role: role as DevTokenRole,
-      issuedAt,
-    };
 
     const tokenRecord = await this.tokenService.findActiveToken(rawToken);
     if (!tokenRecord) {
@@ -98,15 +66,15 @@ export class DevTokenGuard implements CanActivate {
 
     if (
       tokenRecord.user &&
-      tokenRecord.user.id !== Number(userId)
+      tokenRecord.user.id !== authUser.userId
     ) {
       this.logger.warn('Token does not belong to provided user');
       throw new UnauthorizedException('Token user mismatch');
     }
 
-    request.user = payload;
+    request.authUser = authUser;
     this.logger.debug(
-      `Accepted dev token for user ${userId} in tenant ${payload.tenantId}`,
+      `Accepted dev token for user ${authUser.userId} in tenant ${authUser.tenantId}`,
     );
 
     return true;
