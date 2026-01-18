@@ -46,6 +46,3 @@ export class UserFactory extends Factory<User> {
     });
   }
 }
-
-// Backwards-compatible alias (some older tests may still reference "Operator")
-export class OperatorFactory extends UserFactory {}

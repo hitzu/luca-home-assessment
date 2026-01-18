@@ -11,6 +11,7 @@ import { DevTokenGuard } from './auth/guards/dev-token.guard';
 import { TenantsModule } from './tenants/tenants.module';
 import { AuthModule } from './auth/auth.module';
 import { TokenModule } from './tokens/token.module';
+import { GovSyncModule } from './gov-sync/gov-sync.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { TokenModule } from './tokens/token.module';
     TenantsModule,
     AuthModule,
     TokenModule,
+    GovSyncModule,
   ],
   controllers: [AppController],
   providers: [
