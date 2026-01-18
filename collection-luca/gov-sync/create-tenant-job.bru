@@ -5,13 +5,13 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/tenants/1/gov-sync/jobs
+  url: {{baseUrl}}/tenants/2/gov-sync/jobs
   body: json
   auth: inherit
 }
 
 headers {
-  authorization: Bearer {{otherTenantToken}}
+  authorization: Bearer {{token}}
 }
 
 body:json {

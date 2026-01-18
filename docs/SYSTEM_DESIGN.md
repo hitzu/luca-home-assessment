@@ -32,7 +32,7 @@ flowchart LR
     B[Behavior Profile Service]
     S[Gov Sync Service / Worker]
     A[Auth / RBAC]
-    SCH[Scheduler]
+    SCH[Scheduler each Q]
   end
 
   subgraph Datos
@@ -132,8 +132,8 @@ Todos los eventos se convierten a un evento canónico con un esquema estable, pa
 
 ```json
 {
-  "tenantId": "uuid",
-  "studentId": "uuid",
+  "tenantId": "integer",
+  "studentId": "integer",
   "source": "enum",
   "eventType": "enum",
   "occurredAt": "2024-02-15T10:23:00Z",
@@ -203,12 +203,12 @@ flowchart LR
 
 Estrategia:
 - **Buffer asíncrono (cola/event bus)**
-  - Endpoint de ingesta ejemplo POST /api/events:
+  - Endpoint de ingesta ejemplo POST /events:
     - valida lo mínimo (tenant, student, tipo de evento).
-    - publica el evento en `Q` (cola/event bus) y responde rápido (`202 Accepted`).
+    - **POST /events escribe en la cola `Q`** (cola/event bus) y responde rápido (`202 Accepted`).
     - La persistencia y el cálculo de agregados se mueven a un worker desacoplado.
 - **Workers y back-pressure controlado**
-  - Workers leen de `Q` en lotes (batch size configurable)
+  - Workers consumen de `Q` y **aplican back-pressure** (rate limit por tenant + requeue/delay cuando se alcanza el límite), procesando en lotes (batch size configurable)
     - Escriben en `behavior_events` y actualizan `behavior_profiles` de forma incremental.
     - Se puede escalar horizontalmente el número de workers desde alguna variable de entorno según:
       - profundidad de la cola,
@@ -298,7 +298,7 @@ Decisiones:
   - Batch size configurable (ej. 50–200 alumnos por llamada).
 - **Rate limit multi-tenant**:
   - Límites globales (ej. 100 req/s totales) y por tenant (ej. 10 req/s).
-  - Implementable con token bucket en memoria (en la PoC) y movible luego a Redis.
+  - Implementable con token bucket en memoria y movible luego a Redis.
 - **Back-pressure**:
   - Si el rate limit se alcanza, el worker reprograma el batch (requeue con delay) en lugar de hacer busy loop.
   - Marca el job como RUNNING pero con progreso parcial para operar sobre él desde monitoreo.
@@ -372,7 +372,7 @@ Entonces:
 - Podemos comunicar a los tenants el impacto y la ventana esperada de reintento sin perder trazabilidad ni SLA interno.
 
 ### 6.6 Capacity & 48h SLA plan
-Supuestos de orden de magnitud (MVP):
+Supuestos de orden de magnitud:
 - 200 tenants activos.
 - 2,000 estudiantes por tenant (p95), ~400k estudiantes totales.
 - 1 payload por estudiante/periodo → 400k registros por sync trimestral.
@@ -462,18 +462,19 @@ export class TenantRoleGuard implements CanActivate {
 }
 ```
 
-### RBAC matrix (roles → allowed actions)
+### Matriz ejemplo RBAC (roles → acciones permitidas)
 
-| Role       | Can configure grading rules | Can edit evaluations | Can view behavior profiles | Can trigger gov sync | Can view gov sync results | Tenant admin operations |
-|------------|-----------------------------|----------------------|----------------------------|----------------------|---------------------------|-------------------------|
-| ADMIN      | Yes                         | Yes                  | Yes                        | Yes                  | Yes                       | Yes                     |
-| TEACHER    | No (or limited by class)    | Yes (their students) | Yes (their students)       | No                   | Limited (their students)  | No                      |
-| COUNSELOR  | No                          | No                   | Yes (assigned students)    | No                   | Limited (assigned students)| No                      |
-| VIEWER     | No                          | No                   | Read-only                  | No                   | Read-only                 | No                      |
+| Rol        | Puede configurar reglas de calificación | Puede editar evaluaciones | Puede ver perfiles de comportamiento | Puede disparar la sincronización con gobierno | Puede ver resultados de la sincronización | Operaciones de administrador del tenant |
+|------------|-----------------------------------------|----------------------------|--------------------------------------|----------------------------------------------|------------------------------------------|------------------------------------------|
+| ADMIN      | Sí                                      | Sí                         | Sí                                   | Sí                                           | Sí                                       | Sí                                       |
+| TEACHER    | No (o limitado por clase)               | Sí (sus estudiantes)       | Sí (sus estudiantes)                 | No                                           | Limitado (sus estudiantes)               | No                                       |
+| COUNSELOR  | No                                      | No                         | Sí (estudiantes asignados)           | No                                           | Limitado (estudiantes asignados)         | No                                       |
+| VIEWER     | No                                      | No                         | Solo lectura                         | No                                           | Solo lectura                             | No                                       |
 
-- Enforcement happens in application guards (JWT claims: tenant_id + role) and at the DB layer via tenant scoping.
-- “Admin” is per-tenant, not a global superuser.
-- These roles are examples; we can refine or expand as product needs evolve.
+
+- La aplicación se encarga de aplicar estas reglas en los *guards* (claims del JWT: tenant_id + role) y también a nivel de base de datos mediante el *scoping* por tenant.
+- “Admin” es por tenant, no un superusuario global.
+- Estos roles son ejemplos; podemos refinarlos o ampliarlos según evolucionen las necesidades del producto.
 
 
 **En el diseño**:
@@ -493,7 +494,7 @@ flowchart LR
   R --> DB[(Postgres)]
 ```
 
-### 7.3 PII y logging (Pino) – redacción mínima
+### 7.3 PII y logging (Pino) 
 
 Principios:
 

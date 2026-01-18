@@ -37,30 +37,30 @@ erDiagram
 **Nota: Convención de columnas comunes:**  
 Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estandarizadas para mantener consistencia, trazabilidad y facilitar borrado lógico:
 
-- `id` (`uuid`, primary key): Identificador único de la fila.
+- `id` (`integer`, primary key): Identificador único de la fila.
 - `created_at` (`timestamptz`, not null, default now()): Fecha y hora de creación del registro.
 - `updated_at` (`timestamptz`, not null, default now()): Fecha y hora de última actualización.
 - `deleted_at` (`timestamptz`, nullable): Marca lógica de borrado (si es distinto de `null`, el registro se considera eliminado para consultas normales; excelente para auditorías internas y externas).
 
 ### Constantes (resumen)
-
 - `consolidated_grades`: UNIQUE (`tenant_id`, `student_id`, `subject_id`, `period_id`).
 - `evaluations`: UNIQUE (`tenant_id`, `student_id`, `subject_id`, `period_id`, `evaluation_type`).
 - `behavior_events`: UNIQUE (`tenant_id`, `event_id`) para idempotencia.
 - `gov_sync_results`: UNIQUE (`tenant_id`, `idempotency_key`) para reintentos seguros.
 
+
 ### tenants
 
 **Columnas**
-- `id` (uuid, PK) – identificador del tenant.
+- `id` (integer, PK) – identificador del tenant.
 - `name` (varchar(255), not null) – nombre de la escuela u organizacion.
 - `status` (enum: ACTIVE, INACTIVE) – estado del tenant.
 
 ### users
 
 **Columnas**
-- `id` (uuid, PK) – identificador de usuario.
-- `tenant_id` (uuid, FK -> tenants.id, not null) – pertenencia al tenant.
+- `id` (integer, PK) – identificador de usuario.
+- `tenant_id` (integer, FK -> tenants.id, not null) – pertenencia al tenant.
 - `email` (varchar(320), not null) – identificador de login, único por tenant.
 - `full_name` (varchar(255), not null).
 - `role` (enum: ADMIN, TEACHER, COUNSELOR, VIEWER, not null).
@@ -76,8 +76,8 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 ### students
 
 **Columnas**
-- `id` (uuid, PK) – identificador de estudiante.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
+- `id` (integer, PK) – identificador de estudiante.
+- `tenant_id` (integer, FK -> tenants.id, not null).
 - `external_id` (varchar(64), not null) – identificador SEP o número de matrícula de su escuela.
 - `full_name` (varchar(255), not null).
 - `grade_level` (varchar(32), not null).
@@ -94,8 +94,8 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 ### subjects
 
 **Columnas**
-- `id` (uuid, PK) – identificador de asignatura.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
+- `id` (integer, PK) – identificador de asignatura.
+- `tenant_id` (integer, FK -> tenants.id, not null).
 - `code` (varchar(32), not null) – código de asignatura.
 - `name` (varchar(255), not null).
 
@@ -108,8 +108,8 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 ### grading_rules
 
 **Columnas**
-- `id` (uuid, PK) – identificador de regla.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
+- `id` (integer, PK) – identificador de regla.
+- `tenant_id` (integer, FK -> tenants.id, not null).
 - `period_id` (varchar(32), not null) – identificador de periodo o término.
 - `rules` (jsonb, not null) – reglas y ponderaciones.
 - `version` (int, not null, default 1).
@@ -123,11 +123,11 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 ### evaluations
 
 **Columnas**
-- `id` (uuid, PK) – identificador de evaluación.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
-- `student_id` (uuid, FK -> students.id, not null).
-- `subject_id` (uuid, FK -> subjects.id, not null).
-- `grading_rule_id` (uuid, FK -> grading_rules.id, null).
+- `id` (integer, PK) – identificador de evaluación.
+- `tenant_id` (integer, FK -> tenants.id, not null).
+- `student_id` (integer, FK -> students.id, not null).
+- `subject_id` (integer, FK -> subjects.id, not null).
+- `grading_rule_id` (integer, FK -> grading_rules.id, null).
 - `period_id` (varchar(32), not null).
 - `evaluation_type` (varchar(64), not null) – quiz, examen, tarea, etc.
 - `score` (numeric(6,2), not null).
@@ -145,17 +145,20 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 ### consolidated_grades
 
 **Columnas**
-- `id` (uuid, PK) – identificador de nota consolidada.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
-- `student_id` (uuid, FK -> students.id, not null).
-- `subject_id` (uuid, FK -> subjects.id, not null).
+- `id` (integer, PK) – identificador de nota consolidada.
+- `tenant_id` (integer, FK -> tenants.id, not null).
+- `student_id` (integer, FK -> students.id, not null).
+- `subject_id` (integer, FK -> subjects.id, not null).
 - `period_id` (varchar(32), not null).
-- `grading_rule_id` (uuid, FK -> grading_rules.id, null).
+- `grading_rule_id` (integer, FK -> grading_rules.id, null).
 - `final_score` (numeric(6,2), not null).
 - `calculated_at` (timestamptz, not null).
 
 **Índices**
 - `ix_consolidated_grades_tenant_student_period` on (`tenant_id`, `student_id`, `period_id`) – precálculos para lecturas rápidas y snapshots.
+
+**Constantes**
+UNIQUE(tenant_id, student_id, subject_id, period_id) para evitar duplicados.
 
 **Restricciones**
 - `ux_consolidated_grades_tenant_student_subject_period` UNIQUE (`tenant_id`, `student_id`, `subject_id`, `period_id`) – evita filas duplicadas de consolidación en reprocesos.
@@ -163,9 +166,9 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 ### behavior_events
 
 **Columnas**
-- `id` (uuid, PK) – identificador de evento.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
-- `student_id` (uuid, FK -> students.id, not null).
+- `id` (integer, PK) – identificador de evento.
+- `tenant_id` (integer, FK -> tenants.id, not null).
+- `student_id` (integer, FK -> students.id, not null).
 - `event_id` (varchar(128), not null) – idempotency key del evento canónico.
 - `event_type` (varchar(64), not null) – asistencia, participación, etc.
 - `occurred_at` (timestamptz, not null).
@@ -185,10 +188,10 @@ Esto evita duplicados cuando adapters o workers reintentan la publicación del m
 ### behavior_profiles
 
 **Columnas**
-- `id` (uuid, PK).
-- `tenant_id` (uuid, FK -> tenants.id, not null).
-- `student_id` (uuid, FK -> students.id, not null).
-- `last_period_id` (string o uuid) – último periodo consolidado para el snapshot online.
+- `id` (integer, PK).
+- `tenant_id` (integer, FK -> tenants.id, not null).
+- `student_id` (integer, FK -> students.id, not null).
+- `last_period_id` (string o integer) – último periodo consolidado para el snapshot online.
 - `last_event_at` (timestamptz) – último evento considerado en el perfil.
 - `engagement_score` (numeric, ej. 0–100).
 - `attendance_score` (numeric).
@@ -213,8 +216,8 @@ Esta tabla es la fuente de verdad del comportamiento online: 1 fila por (`tenant
 ### gov_sync_jobs
 
 **Columnas**
-- `id` (uuid, PK) – identificador de job.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
+- `id` (integer, PK) – identificador de job.
+- `tenant_id` (integer, FK -> tenants.id, not null).
 - `period_id` (varchar(32), not null).
 - `window_start` (date, not null).
 - `window_end` (date, not null).
@@ -229,10 +232,10 @@ Esta tabla es la fuente de verdad del comportamiento online: 1 fila por (`tenant
 ### gov_sync_results
 
 **Columnas**
-- `id` (uuid, PK) – identificador de resultado.
-- `job_id` (uuid, FK -> gov_sync_jobs.id, not null).
-- `tenant_id` (uuid, FK -> tenants.id, not null).
-- `student_id` (uuid, FK -> students.id, not null).
+- `id` (integer, PK) – identificador de resultado.
+- `job_id` (integer, FK -> gov_sync_jobs.id, not null).
+- `tenant_id` (integer, FK -> tenants.id, not null).
+- `student_id` (integer, FK -> students.id, not null).
 - `period_id` (varchar(32), not null).
 - `status` (enum: ACCEPTED, REJECTED, CORRECTED, ERROR, DEAD, WAITING_EXTERNAL, not null).
 - `attempt_number` (int, not null, default 1) – intento actual para este student/period.
@@ -255,12 +258,12 @@ Los estados se alinean con el flujo de sincronización del sistema (incluye fall
 ### audit_logs
 
 **Columnas**
-- `id` (uuid, PK) – identificador de auditoría.
-- `tenant_id` (uuid, FK -> tenants.id, not null).
-- `actor_id` (uuid, FK -> users.id, not null).
+- `id` (integer, PK) – identificador de auditoría.
+- `tenant_id` (integer, FK -> tenants.id, not null).
+- `actor_id` (integer, FK -> users.id, not null).
 - `action` (varchar(128), not null).
 - `resource_type` (varchar(128), not null).
-- `resource_id` (uuid, null).
+- `resource_id` (integer, null).
 - `metadata` (jsonb, null).
 - `ip_address` (inet, null).
 
