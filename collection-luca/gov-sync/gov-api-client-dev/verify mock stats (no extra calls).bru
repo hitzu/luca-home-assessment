@@ -1,0 +1,21 @@
+meta {
+  name: verify mock stats (no extra calls)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/__mock/gov-api/stats
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

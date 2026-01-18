@@ -5,13 +5,9 @@ meta {
 }
 
 get {
-  url: {{base_url}}/tenants/:tenantId/gov-sync/jobs/1
+  url: {{base_url}}/tenants/1/gov-sync/jobs/1
   body: json
   auth: inherit
-}
-
-params:path {
-  tenantId: 
 }
 
 headers {

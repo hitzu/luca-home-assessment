@@ -1,0 +1,31 @@
+meta {
+  name: batch success
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/__mock/gov-api/batch
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "tenantId": 1,
+    "periodId": "2025-Q1",
+    "students": [
+      { "studentId": "s-1", "payload": { "gpa": 3.5 } },
+      { "studentId": "s-2", "payload": { "gpa": 3.9 } }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

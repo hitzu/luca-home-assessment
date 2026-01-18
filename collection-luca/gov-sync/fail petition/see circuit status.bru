@@ -1,0 +1,20 @@
+meta {
+  name: see circuit status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/__mock/gov-api/stats
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

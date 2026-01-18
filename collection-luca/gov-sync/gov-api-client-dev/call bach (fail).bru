@@ -1,0 +1,20 @@
+meta {
+  name: call bach (fail)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/tenants/1/gov-sync/__dev/gov-api/circuit
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

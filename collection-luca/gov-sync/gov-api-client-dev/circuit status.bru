@@ -1,0 +1,25 @@
+meta {
+  name: circuit status
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/tenants/{{tenantId}}/gov-sync/__dev/gov-api/circuit
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+vars {
+  tenantId: Tenant1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

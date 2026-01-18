@@ -1,0 +1,21 @@
+meta {
+  name: reset
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/__mock/gov-api/reset
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

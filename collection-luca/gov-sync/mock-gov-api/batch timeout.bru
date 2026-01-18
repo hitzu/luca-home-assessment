@@ -1,0 +1,31 @@
+meta {
+  name: batch timeout
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/__mock/gov-api/batch
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "tenantId": "Tenant1",
+    "periodId": "2025-Q1-TIMEOUT",
+    "students": [
+      { "studentId": "s-1", "payload": { "gpa": 3.5 } }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
