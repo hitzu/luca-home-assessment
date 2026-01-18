@@ -32,8 +32,6 @@ erDiagram
   STUDENTS ||--o{ BEHAVIOR_PROFILES : has_current_profile
 ```
 
-<<<captura de pantalla del ERD (render de Mermaid)>>> 
-
 ## Definición de tablas
 
 **Nota: Convención de columnas comunes:**  
@@ -56,7 +54,6 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 **Columnas**
 - `id` (uuid, PK) – identificador del tenant.
 - `name` (varchar(255), not null) – nombre de la escuela u organizacion.
-- `name` (varchar(255), not null) – nombre de la escuela u organización.
 - `status` (enum: ACTIVE, INACTIVE) – estado del tenant.
 
 ### users
@@ -66,7 +63,7 @@ Todas las tablas de negocio incluyen, por defecto, las siguientes columnas estan
 - `tenant_id` (uuid, FK -> tenants.id, not null) – pertenencia al tenant.
 - `email` (varchar(320), not null) – identificador de login, único por tenant.
 - `full_name` (varchar(255), not null).
-- `role` (enum: ADMIN, TEACHER, VIEWER, not null).
+- `role` (enum: ADMIN, TEACHER, COUNSELOR, VIEWER, not null).
 - `scopes` (jsonb, null) – permisos finos por usuario.
 - `status` (enum: ACTIVE, SUSPENDED, not null).
 - `last_login_at` (timestamptz, null).
@@ -285,7 +282,7 @@ Evitar PII cruda en `audit_logs`: minimizar payload y, cuando aplique, hashear i
 
 ### Multi-tenancy y aislamiento de datos
 
-Para la implementación MVP uso un **único esquema lógico** con columna `tenant_id` en todas las tablas de negocio (students, grades, events, etc.), además de:
+Para la implementación propuesta uso un único esquema lógico con columna `tenant_id` en todas las tablas de negocio (students, grades, events, etc.), además de:
 
 - Filtros por `tenant_id` en todas las consultas provenientes de contextos autenticados.
 - Índices que incluyen `tenant_id` para mantener consultas rápidas (ej. `idx_students_tenant_id_student_id`).
@@ -299,11 +296,11 @@ Como **evolución futura**, podríamos pasar a un modelo **schema-per-tenant**:
 - Mayor aislamiento de datos (mejor blast radius y límites de auditoría más claros).
 - Unidad natural para mover tenants grandes a instancias o clusters dedicados de Postgres.
 
-Dadas las restricciones de tiempo y el enfoque del challenge (latencia, procesamiento de eventos, sincronización gubernamental y observabilidad), mantengo el MVP en un solo esquema y dejo schema-per-tenant como un camino de evolución claro.
+Dadas las restricciones de tiempo y el enfoque del challenge (latencia, procesamiento de eventos, sincronización gubernamental y observabilidad), propongo empezar con un solo esquema y dejo schema-per-tenant como un camino de evolución claro.
 
 ```mermaid
 flowchart LR
-  subgraph MVP["MVP: esquema único"]
+  subgraph MVP["Esquema único"]
     A[API] --> B[(Postgres: esquema luca)]
     B --> C[tablas con tenant_id]
   end
@@ -317,4 +314,3 @@ flowchart LR
   end
 ```
 
-<<<captura de pantalla del diagrama de multi-tenancy (MVP vs futuro) (render de Mermaid)>>> 

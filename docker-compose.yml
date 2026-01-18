@@ -45,8 +45,6 @@ volumes:
     driver: local
   postgres_test_data:
     driver: local
-  redis_data:
-    driver: local
 
 networks:
   luca-network:

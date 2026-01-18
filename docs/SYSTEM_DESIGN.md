@@ -60,8 +60,6 @@ flowchart LR
   S --> PG
 ```
 
-<<<captura de pantalla del diagrama de arquitectura (render de Mermaid)>>> 
-
 Resumen (at a glance):
 - **Write path**: docentes envían evaluaciones/actividades → write API → event bus / DB → cómputo asíncrono de `consolidated_grades` y `behavior_profiles`.
 - **Read path**: clientes piden el snapshot de un estudiante → read API → `behavior_profiles` + `consolidated_grades` (con cache) para cumplir p95/p99.
@@ -85,7 +83,7 @@ sequenceDiagram
   participant Cache as Cache (opcional)
   participant DB as Postgres (read models)
 
-  C->>API: GET /api/students/{id}/snapshot
+  C->>API: Fetch student snapshot (profile + consolidated grades)
   API->>Cache: lookup(tenant_id, student_id)
   alt hit
     Cache-->>API: profile + consolidated grade
@@ -97,8 +95,6 @@ sequenceDiagram
   end
   API-->>C: respuesta < 120ms p95
 ```
-
-<<<captura de pantalla del diagrama de secuencia de lectura (render de Mermaid)>>> 
 
 Estrategia de latencia: tabla precomputada, índices compuestos `(tenant_id, student_id)` y protección con cache con TTL (in-memory hoy, intercambiable por Redis).
 
@@ -122,8 +118,7 @@ Fuentes típicas:
 - Sistemas externos de la escuela (ausencias, reportes disciplinarios, reconocimientos).
 - Imports batch históricos (CSV/JSON).
 
-Cada fuente entra por un adapter dedicado (endpoint HTTP o job de import) para aislar formatos y ritmos:
-- `/api/events/platform`, `/api/events/lms`, `/api/events/discipline`, `/api/events/import`.
+Cada fuente entra por un adapter dedicado (endpoint HTTP o job de import) para aislar formatos y ritmos.
 
 En estos adapters:
 - Se resuelve `tenant_id` (API key, dominio o token JWT).
@@ -208,9 +203,9 @@ flowchart LR
 
 Estrategia:
 - **Buffer asíncrono (cola/event bus)**
-  - `POST /api/events`:
-    - Valida lo mínimo (tenant, student, tipo de evento).
-    - Publica el evento en `Q` (cola/event bus) y responde rápido (200).
+  - Endpoint de ingesta ejemplo POST /api/events:
+    - valida lo mínimo (tenant, student, tipo de evento).
+    - publica el evento en `Q` (cola/event bus) y responde rápido (`202 Accepted`).
     - La persistencia y el cálculo de agregados se mueven a un worker desacoplado.
 - **Workers y back-pressure controlado**
   - Workers leen de `Q` en lotes (batch size configurable)
@@ -256,7 +251,7 @@ sequenceDiagram
 
   loop por lote
     Q-->>W: batch message (job_id, alumnos[])
-    W->>GOV: POST /grades (idempotency-key por alumno)
+    W->>GOV: Submit batch (idempotency-key por alumno)
     GOV-->>W: accept / reject / correct / error
     W->>DB: INSERT gov_sync_results<br/>+ update gov_sync_jobs progreso
   end
@@ -268,7 +263,6 @@ sequenceDiagram
   end
 ```
 
-<<<captura de pantalla del flujo de sincronización (render de Mermaid)>>> 
 
 **Batching**: cada mensaje de cola contiene un conjunto de alumnos (ej. 100) para minimizar overhead pero mantener granularidad.
 
@@ -345,7 +339,7 @@ sequenceDiagram
 
     W->>CB: sendBatch(job_id, alumnos[])
     alt Breaker CLOSED
-        CB->>GOV: POST /grades
+        CB->>GOV: Submit batch request
         GOV-->>CB: 2xx / 4xx / 5xx / timeout
         CB-->>W: resultado (éxito o fallo)
         note over CB: actualiza métricas<br/>y posible cambio de estado
@@ -354,8 +348,6 @@ sequenceDiagram
         note over W: marcar batch como<br/>WAITING_EXTERNAL / requeue diferido
     end
 ```
-
-<<<captura de pantalla del diagrama de circuit breaker (render de Mermaid)>>> 
 
 
 Política del breaker (ejemplo):
@@ -392,10 +384,6 @@ Si cada request envía batch de 100 alumnos:
 
 Esto deja amplio margen para **retries, backoff, rate limiting** y ventanas degradadas del API externo sin romper el SLA de 48h.
 
-### 6.7 MVP PoC en este repo
-- Entry point interno: `POST /api/gov-sync/jobs` crea un job por tenant+periodo.
-- Mock de gobierno: `POST /api/_mock/government/grades` (modo `ok` | `fail` | `flaky`).
-- `GovApiClient` implementa retries con backoff y circuit breaker (CLOSED/OPEN/HALF_OPEN).
 
 ## 7) Seguridad multi-tenant, RBAC, PII y auditoría
 
@@ -487,7 +475,6 @@ export class TenantRoleGuard implements CanActivate {
 - “Admin” is per-tenant, not a global superuser.
 - These roles are examples; we can refine or expand as product needs evolve.
 
-<<<captura de pantalla de la matriz RBAC renderizada en Markdown>>> 
 
 **En el diseño**:
 

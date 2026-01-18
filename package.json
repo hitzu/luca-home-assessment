@@ -1,8 +1,8 @@
 {
-  "name": "bookandsign-api",
+  "name": "luca-home-assessment",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "description": "Luca home assessment",
+  "author": "Roberto Torres",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

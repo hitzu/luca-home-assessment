@@ -1,6 +1,6 @@
-# Luca — Technical Assessment (Diseño + MVP de resiliencia Gov Sync)
+# Luca — Technical Assessment (Diseño + PoC opcional: Gov Sync resiliente)
 
-Este repositorio es una implementación PoC que acompaña el diseño del sistema pedido en el home assessment y perfil de comportamiento por estudiante, en un contexto multi-tenant con control de acceso y trazabilidad.
+Este repositorio contiene el entregable de diseño (arquitectura + decisiones + modelo de datos) y un el PoC opcional que demuestra resiliencia en la integración de Gov Sync (mock + circuit breaker por tenant).
 
 El foco del MVP mostrado aquí es la integración resiliente con el "Government API" (mock incluido) y, en particular, el **circuit breaker por tenant** como protección ante fallas/latencias típicas de integraciones gubernamentales.
 
@@ -10,7 +10,9 @@ El foco del MVP mostrado aquí es la integración resiliente con el "Government 
 
 - [Diseño del sistema](./docs/SYSTEM_DESIGN.md) — arquitectura, flujos write/read/sync, latencia, operación.
 - [Modelo de datos](./docs/DATA_MODEL_DESIGN.md) — tablas, índices, multi-tenant y trazabilidad.
-- [API Reference](./API.md) — endpoints.
+- **PoC (Gov Sync)**:
+  - Swagger: `http://localhost:3000/api`
+  - Bruno collection: `collection-luca/`
 - [Testing](./TESTING.md) — estrategia de pruebas.
 
 ---
@@ -227,8 +229,7 @@ curl -s -X POST "http://localhost:3000/__mock/gov-api/mode" \
 
 Se deja enfriar el circuito, por un delay, cuando este esta frio, el sistema circuito se pone en half open, permite hacer n cantidad de llamados, si funcionan el sistema vueve a estar cerrado, si empiezan a fallar se abre de nuevo
 
-![circuit circuit open](./images-for-read-me/
-works-correctly-with-half-open.png)
+![circuit circuit open](./images-for-read-me/works-correctly-with-half-open.png)
 
 
 ---
@@ -268,8 +269,7 @@ En los endpoints con path `/tenants/:tenantId/...`, el `TenantParamGuard` compar
 
 Si no coinciden, responde **403** con `Tenant mismatch` (esto es lo que se ve en Bruno cuando intentas llamar un endpoint de tenant con un token de otro tenant).
 
-![rbac bruno](./images-for-read-me/
-rbac-error.png)
+![rbac bruno](./images-for-read-me/rbac-error.png)
 
 ### Acciones ADMIN-only (AdminRoleGuard)
 
@@ -294,8 +294,7 @@ curl -i -X POST "http://localhost:3000/tenants/1/gov-sync/jobs" \
   -H "content-type: application/json" \
   -d '{"periodId":"2025-Q1"}'
 ```
-![user with out no permissions](./images-for-read-me/
-token-with-no-permission.png)
+![user with out no permissions](./images-for-read-me/token-with-no-permission.png)
 
 ## Bruno (colección lista para usar)
 
