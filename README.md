@@ -97,6 +97,73 @@ Swagger UI: https://zendly-tech-test.onrender.com/api
 
 ---
 
+## Government Sync MVP
+
+- **Auth / access control**: all gov-sync routes are tenant-scoped (`/tenants/:tenantId/...`). Requests must include a dev token; **only `ADMIN` in the same tenant** can create a job or trigger processing. Wrong tenant or non-admin → **403**.
+- **Flow**: **create job** → **process job** (single attempt) → **view status**.
+- **External calls**: all outbound calls go through `GovApiClient`, which includes a **per-tenant circuit breaker** (opens after N failures; then fails fast).
+- **Mock gov API**: use the built-in mock to simulate **`ok` / `fail` / `timeout`** and observe the circuit opening.
+
+### How to run (gov-sync)
+
+```bash
+docker compose up -d postgres-dev postgres-test
+pnpm install
+
+# Required for gov-sync demo (point client at the in-app mock gov API)
+export GOV_API_BASE_URL="http://localhost:3000/__mock/gov-api"
+
+pnpm dev
+```
+
+### Quick demo (cURL)
+
+```bash
+# 1) Dev signup (creates user + registers a dev token)
+TOKEN=$(
+  curl -s -X POST "http://localhost:3000/auth/signup" \
+    -H "content-type: application/json" \
+    -d '{"tenantId":1,"email":"admin@school.edu","fullName":"Admin","role":"ADMIN"}' \
+  | node -pe "JSON.parse(fs.readFileSync(0,'utf8')).token"
+)
+
+# 2) Create a gov-sync job
+JOB_ID=$(
+  curl -s -X POST "http://localhost:3000/tenants/1/gov-sync/jobs" \
+    -H "authorization: Bearer $TOKEN" \
+    -H "content-type: application/json" \
+    -d '{"periodId":"2025-Q1"}' \
+  | node -pe "JSON.parse(fs.readFileSync(0,'utf8')).jobId"
+)
+
+# 3) Mock gov API: ok mode, then process once -> COMPLETED
+curl -s -X POST "http://localhost:3000/__mock/gov-api/mode" \
+  -H "content-type: application/json" \
+  -d '{"mode":"ok"}' >/dev/null
+curl -s -X POST "http://localhost:3000/tenants/1/gov-sync/jobs/$JOB_ID/process" \
+  -H "authorization: Bearer $TOKEN" | cat
+
+# 4) Inspect status
+curl -s "http://localhost:3000/tenants/1/gov-sync/jobs/$JOB_ID" \
+  -H "authorization: Bearer $TOKEN" | cat
+```
+
+### Simulate failures + breaker opening
+
+```bash
+curl -s -X POST "http://localhost:3000/__mock/gov-api/mode" \
+  -H "content-type: application/json" \
+  -d '{"mode":"fail"}' >/dev/null
+
+# Call /process a few times (threshold configurable via GOV_API_CB_FAILURE_THRESHOLD)
+curl -s -X POST "http://localhost:3000/tenants/1/gov-sync/jobs/$JOB_ID/process" \
+  -H "authorization: Bearer $TOKEN" >/dev/null
+
+# Check circuit state
+curl -s "http://localhost:3000/tenants/1/gov-sync/__dev/gov-api/circuit" \
+  -H "authorization: Bearer $TOKEN" | cat
+```
+
 ## Functional overview
 
 At a high level, the service implements the domain described in the “Backend requirements for Inbox and Allocation system” document and exposes the capabilities below.

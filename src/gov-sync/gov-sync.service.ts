@@ -1,7 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { GovApiClient } from './clients/http/gov-api.client';
 import { GovSyncJob } from './entities/gov-sync-job.entity';
 import { GovSyncResult } from './entities/gov-sync-result.entity';
 import { GOV_SYNC_JOB_STATUS } from './types/gov-sync-job-status.type';
@@ -18,6 +25,7 @@ export class GovSyncService {
     private readonly jobRepository: Repository<GovSyncJob>,
     @InjectRepository(GovSyncResult)
     private readonly resultRepository: Repository<GovSyncResult>,
+    private readonly govApiClient: GovApiClient,
   ) { }
 
   async startJob(params: {
@@ -55,6 +63,82 @@ export class GovSyncService {
       startedAt: saved.startedAt?.toISOString() ?? null,
       completedAt: saved.completedAt?.toISOString() ?? null,
     });
+  }
+
+  async processJob(params: {
+    tenantId: string;
+    jobId: number;
+  }): Promise<GovSyncJobResponseDto> {
+    const { tenantId, jobId } = params;
+    const tenantNumericId = this.parseTenantNumericId(tenantId);
+    const job = await this.jobRepository.findOne({
+      where: { id: jobId, tenantId: tenantNumericId },
+    });
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+    if (job.status === GOV_SYNC_JOB_STATUS.COMPLETED) {
+      return this.getJob({ tenantId, jobId });
+    }
+    const now = new Date();
+    const startedAt = job.startedAt ?? now;
+    await this.jobRepository.update(
+      { id: jobId, tenantId: tenantNumericId },
+      { status: GOV_SYNC_JOB_STATUS.RUNNING, startedAt, completedAt: null },
+    );
+    const studentId = '00000000-0000-0000-0000-000000000001';
+    const students = [{ studentId, payload: { jobId } }];
+    try {
+      const result = await this.govApiClient.sendBatch(
+        tenantId,
+        job.periodId,
+        students,
+      );
+      await this.resultRepository.save({
+        jobId: job.id,
+        tenantId: tenantNumericId,
+        studentId,
+        periodId: job.periodId,
+        status: GOV_SYNC_RESULT_STATUS.ACCEPTED,
+        attemptNumber: 1,
+        externalRecordId: result.results?.[0]?.externalRecordId ?? null,
+        idempotencyKey: `job-${job.id}-student-${studentId}-attempt-1`,
+        errorCode: null,
+        errorMessage: null,
+        rawRequest: { tenantId, periodId: job.periodId, students },
+        rawResponse: result as unknown as Record<string, unknown>,
+        syncedAt: now,
+        nextRetryAt: null,
+      });
+      await this.jobRepository.update(
+        { id: jobId, tenantId: tenantNumericId },
+        { status: GOV_SYNC_JOB_STATUS.COMPLETED, completedAt: now },
+      );
+      return this.getJob({ tenantId, jobId });
+    } catch (error) {
+      const nextRetryAt = this.computeNextRetryAt(tenantId, error);
+      await this.resultRepository.save({
+        jobId: job.id,
+        tenantId: tenantNumericId,
+        studentId,
+        periodId: job.periodId,
+        status: GOV_SYNC_RESULT_STATUS.WAITING_EXTERNAL,
+        attemptNumber: 1,
+        externalRecordId: null,
+        idempotencyKey: `job-${job.id}-student-${studentId}-waiting-${Date.now()}`,
+        errorCode: error instanceof Error ? error.name : 'UNKNOWN',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        rawRequest: { tenantId, periodId: job.periodId, students },
+        rawResponse: null,
+        syncedAt: null,
+        nextRetryAt,
+      });
+      await this.jobRepository.update(
+        { id: jobId, tenantId: tenantNumericId },
+        { status: GOV_SYNC_JOB_STATUS.WAITING_EXTERNAL, completedAt: null },
+      );
+      return this.getJob({ tenantId, jobId });
+    }
   }
 
   async getJob(params: {
@@ -131,6 +215,19 @@ export class GovSyncService {
       throw new BadRequestException('Invalid tenantId format');
     }
     return parsed;
+  }
+
+  private computeNextRetryAt(tenantId: string, error: unknown): Date | null {
+    const now = Date.now();
+    if (error instanceof ServiceUnavailableException) {
+      const circuit = this.govApiClient.getCircuitStatus(tenantId);
+      const delayMs = circuit.openMsRemaining ?? 5000;
+      return new Date(now + delayMs);
+    }
+    if (error instanceof BadGatewayException || error instanceof Error) {
+      return new Date(now + 5000);
+    }
+    return null;
   }
 
   private parseQuarterWindow(periodId: string): {

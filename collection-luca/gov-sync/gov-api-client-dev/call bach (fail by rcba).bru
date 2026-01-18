@@ -1,7 +1,7 @@
 meta {
-  name: call bach
+  name: call bach (fail by rcba)
   type: http
-  seq: 4
+  seq: 5
 }
 
 post {
@@ -11,16 +11,19 @@ post {
 }
 
 headers {
-  authorization: Bearer {{token}}
+  authorization: Bearer {{otherTenantToken}}
 }
 
 body:json {
   {
-    "tenantId": 1,
-    "periodId": "2025-Q1",
+    "periodId": "2025-Q1-FAIL",
     "students": [
-      { "studentId": "s-1", "payload": { "gpa": 3.5 } },
-      { "studentId": "s-2", "payload": { "gpa": 3.9 } }
+      {
+        "studentId": "s-1",
+        "payload": {
+          "gpa": 3.5
+        }
+      }
     ]
   }
 }

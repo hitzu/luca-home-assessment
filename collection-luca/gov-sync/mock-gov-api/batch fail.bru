@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{base_url}}/__mock/gov-api/batch
+  url: {{baseUrl}}/__mock/gov-api/batch
   body: json
   auth: inherit
 }
@@ -17,7 +17,7 @@ headers {
 body:json {
   {
     "tenantId": 1,
-    "periodId": "2025-Q1-FAIL",
+    "periodId": "2025-Q1",
     "students": [
       { "studentId": "s-1", "payload": { "gpa": 3.5 } }
     ]

@@ -62,13 +62,18 @@ describe('GovApiClient', () => {
     const tenantId = 'Tenant9';
     const students = [{ studentId: 's-1', payload: {} }];
     const statsBefore = await (await fetch(`${baseUrl}/stats`)).json();
+    await fetch(`${baseUrl}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'fail' }),
+    });
 
     // Act
     await expect(
-      client.sendBatch(tenantId, '2025-Q1-FAIL', students),
+      client.sendBatch(tenantId, '2025-Q1', students),
     ).rejects.toBeDefined();
     await expect(
-      client.sendBatch(tenantId, '2025-Q2-FAIL', students),
+      client.sendBatch(tenantId, '2025-Q2', students),
     ).rejects.toBeDefined();
     const statsAfterFailures = await (await fetch(`${baseUrl}/stats`)).json();
     await expect(
@@ -77,6 +82,7 @@ describe('GovApiClient', () => {
     const statsAfterFastFail = await (await fetch(`${baseUrl}/stats`)).json();
 
     // Assert
+    expect(client.getCircuitStatus(tenantId).state).toBe('OPEN');
     expect(statsAfterFailures.totalRequests).toBe(statsBefore.totalRequests + 2);
     expect(statsAfterFastFail.totalRequests).toBe(statsAfterFailures.totalRequests);
   });
@@ -85,15 +91,25 @@ describe('GovApiClient', () => {
     // Arrange
     const tenantId = 'Tenant2';
     const students = [{ studentId: 's-1', payload: {} }];
+    await fetch(`${baseUrl}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'fail' }),
+    });
     await expect(
-      client.sendBatch(tenantId, '2025-Q1-FAIL', students),
+      client.sendBatch(tenantId, '2025-Q1', students),
     ).rejects.toBeDefined();
     await expect(
-      client.sendBatch(tenantId, '2025-Q2-FAIL', students),
+      client.sendBatch(tenantId, '2025-Q2', students),
     ).rejects.toBeDefined();
 
     // Act
     await new Promise((resolve) => setTimeout(resolve, 175));
+    await fetch(`${baseUrl}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'ok' }),
+    });
     const result = await client.sendBatch(tenantId, '2025-Q3', students);
 
     // Assert
@@ -105,13 +121,18 @@ describe('GovApiClient', () => {
     // Arrange
     const tenantId = 'Tenant3';
     const students = [{ studentId: 's-1', payload: {} }];
+    await fetch(`${baseUrl}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'timeout' }),
+    });
 
     // Act / Assert
     await expect(
-      client.sendBatch(tenantId, '2025-Q1-TIMEOUT', students),
+      client.sendBatch(tenantId, '2025-Q1', students),
     ).rejects.toBeDefined();
     await expect(
-      client.sendBatch(tenantId, '2025-Q2-TIMEOUT', students),
+      client.sendBatch(tenantId, '2025-Q2', students),
     ).rejects.toBeDefined();
     await expect(
       client.sendBatch(tenantId, '2025-Q3', students),

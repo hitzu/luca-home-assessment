@@ -5,13 +5,27 @@ meta {
 }
 
 post {
-  url: {{base_url}}/tenants/1/gov-sync/__dev/gov-api/circuit
+  url: {{base_url}}/tenants/1/gov-sync/__dev/gov-api/send-batch
   body: json
   auth: inherit
 }
 
 headers {
   authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "periodId": "2025-Q1-FAIL",
+    "students": [
+      {
+        "studentId": "s-1",
+        "payload": {
+          "gpa": 3.5
+        }
+      }
+    ]
+  }
 }
 
 settings {

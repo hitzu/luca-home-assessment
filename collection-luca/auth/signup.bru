@@ -5,20 +5,16 @@ meta {
 }
 
 post {
-  url: {{base_url}}/auth/signup
+  url: {{baseUrl}}/auth/signup
   body: json
   auth: inherit
 }
 
 body:json {
   {
-    "tenantId": 1,
-    "role": "admin",
-    "fullName": "Roberto Torres 1",
-    
-    "email": "robert.torres.lopez+1@gmail.com",
-    "password": "password",
-    "phone": "2221101495",
+    "tenantId": 2,
+    "email": "admin@school.edu",
+    "fullName": "Admin User",
     "role": "ADMIN"
   }
 }

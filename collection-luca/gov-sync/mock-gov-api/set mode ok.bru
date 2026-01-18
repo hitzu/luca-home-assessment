@@ -1,22 +1,21 @@
 meta {
-  name: login
+  name: set mode ok
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
-  url: {{baseUrl}}/auth/login
+  url: {{baseUrl}}/__mock/gov-api/mode
   body: json
   auth: inherit
 }
 
 body:json {
-  {
-    "userId": 6
-  }
+  { "mode": "ok" }
 }
 
 settings {
   encodeUrl: true
   timeout: 0
 }
+

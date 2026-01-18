@@ -8,6 +8,7 @@ import { GovSyncJob } from './entities/gov-sync-job.entity';
 import { GovSyncResult } from './entities/gov-sync-result.entity';
 import { GOV_SYNC_JOB_STATUS } from './types/gov-sync-job-status.type';
 import { GOV_SYNC_RESULT_STATUS } from './types/gov-sync-result-status.type';
+import { GovApiClient } from './clients/http/gov-api.client';
 import { GovSyncService } from './gov-sync.service';
 
 describe('GovSyncService', () => {
@@ -26,6 +27,13 @@ describe('GovSyncService', () => {
         {
           provide: getRepositoryToken(GovSyncResult),
           useValue: TestDataSource.getRepository(GovSyncResult),
+        },
+        {
+          provide: GovApiClient,
+          useValue: {
+            sendBatch: jest.fn(),
+            getCircuitStatus: jest.fn(),
+          },
         },
       ],
     }).compile();

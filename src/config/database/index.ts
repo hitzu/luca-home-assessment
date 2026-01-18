@@ -6,6 +6,7 @@ export { AppDataSource } from './data-source';
 
 export const getTypeOrmConfig = (): TypeOrmModuleOptions => {
   const nodeEnv = process.env.NODE_ENV || 'local';
+  const isTest = nodeEnv === 'test';
   const isProd = nodeEnv === 'prod';
 
   dotenv.config({
@@ -17,10 +18,10 @@ export const getTypeOrmConfig = (): TypeOrmModuleOptions => {
 
   const defaults = {
     host: 'localhost',
-    port: 5432,
+    port: isTest ? 57433 : 57432,
     username: 'postgres',
     password: 'postgres',
-    database: 'bookandsign_dev',
+    database: isTest ? 'luca_test' : 'luca_dev',
   };
 
   return {
@@ -34,12 +35,12 @@ export const getTypeOrmConfig = (): TypeOrmModuleOptions => {
     schema,
 
     entities: [path.join(__dirname, '../../**/entities/*.entity{.ts,.js}')],
-    migrations: [
-      path.join(__dirname, '../../database/migrations/**/*{.ts,.js}'),
-    ],
-    synchronize: false,
+    migrations: isTest
+      ? []
+      : [path.join(__dirname, '../../database/migrations/**/*{.ts,.js}')],
+    synchronize: isTest,
     logging: false,
-    dropSchema: false,
+    dropSchema: isTest,
 
     // Set PostgreSQL search_path to use the specified schema
     extra: {

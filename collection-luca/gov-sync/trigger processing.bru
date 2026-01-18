@@ -1,12 +1,12 @@
 meta {
-  name: see circuit status
+  name: trigger processing
   type: http
-  seq: 2
+  seq: 3
 }
 
-get {
-  url: {{base_url}}/tenants/1/gov-sync/__dev/gov-api/circuit
-  body: json
+post {
+  url: {{baseUrl}}/tenants/{{tenantId}}/gov-sync/jobs/{{jobId}}/process
+  body: none
   auth: inherit
 }
 
@@ -18,3 +18,4 @@ settings {
   encodeUrl: true
   timeout: 0
 }
+
