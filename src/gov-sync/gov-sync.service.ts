@@ -116,6 +116,12 @@ export class GovSyncService {
       );
       return this.getJob({ tenantId, jobId });
     } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw new ServiceUnavailableException(
+          `Gov API circuit breaker open for tenant ${tenantId}`,
+        );
+      }
+
       const nextRetryAt = this.computeNextRetryAt(tenantId, error);
       await this.resultRepository.save({
         jobId: job.id,

@@ -85,10 +85,14 @@ export class MockGovApiController {
     STATE.totalRequests += 1;
     STATE.requestsByTenantId[tenantId] =
       (STATE.requestsByTenantId[tenantId] ?? 0) + 1;
-    if (STATE.mode === 'timeout') {
+    const periodIdUpper = String(periodId ?? '').toUpperCase();
+    const shouldTimeoutByPeriod = periodIdUpper.includes('TIMEOUT');
+    const shouldFailByPeriod = periodIdUpper.includes('FAIL');
+
+    if (STATE.mode === 'timeout' || shouldTimeoutByPeriod) {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    if (STATE.mode === 'fail') {
+    if (STATE.mode === 'fail' || shouldFailByPeriod) {
       throw new InternalServerErrorException('Simulated gov API failure');
     }
     const batchId = `batch-${tenantId}-${periodId}-${Date.now()}`;

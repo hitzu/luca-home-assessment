@@ -20,7 +20,7 @@ describe('TenantParamGuard', () => {
   it('allows when tenantId param matches authUser tenantId', async () => {
     // Arrange
     const ctx = makeContext({
-      authUser: { tenantId: 'Tenant1', userId: 1, role: 'ADMIN' },
+      authUser: { tenant: 'Tenant', tenantId: '1', userId: 1, role: 'ADMIN' },
       params: { tenantId: '1' },
     });
 

@@ -71,6 +71,14 @@ export class GovApiClient {
   ): Promise<GovBatchResult> {
     const breaker = this.getBreaker(tenantId);
     this.assertCircuitAllowsRequest(tenantId, breaker);
+    // o en dado caso aqui? ya sabemos que esta abierto, por lo que no se va a hacer la llamada y hacer el throw de ServiceUnavailableException
+
+    if (breaker.state === 'OPEN') {
+      throw new ServiceUnavailableException(
+        `Gov API circuit breaker open for tenant ${tenantId}`,
+      );
+    }
+
     const url = this.getBaseUrl() + '/batch';
     try {
       const response = await this.fetchJson<GovBatchResult>(url, {

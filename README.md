@@ -1,6 +1,6 @@
 # Luca — Technical Assessment (Diseño + MVP de resiliencia Gov Sync)
 
-Este repositorio es una implementación **PoC** que acompaña el diseño del sistema pedido en el hoe assessment y perfil de comportamiento por estudiante, en un contexto multi-tenant con control de acceso y trazabilidad.
+Este repositorio es una implementación PoC que acompaña el diseño del sistema pedido en el home assessment y perfil de comportamiento por estudiante, en un contexto multi-tenant con control de acceso y trazabilidad.
 
 El foco del MVP mostrado aquí es la integración resiliente con el "Government API" (mock incluido) y, en particular, el **circuit breaker por tenant** como protección ante fallas/latencias típicas de integraciones gubernamentales.
 
@@ -52,7 +52,9 @@ pnpm install
 
 ### 3) Migraciones (dev)
 
-Nota: si no seteas `NODE_ENV`, el sistema asume `local`.
+Nota: 
+Si no seteas `NODE_ENV`, el sistema asume `local`.
+Si no seteas `DB_SCHEMA`, se asume `public`
 
 ```bash
 export NODE_ENV=local
@@ -116,7 +118,9 @@ Esto protege:
 - la BD (evita cascadas de retries y saturación),
 - y reduce carga hacia el API externo cuando ya está degradado.
 
-<<<captura de pantalla de los estados del circuit breaker (CLOSED/OPEN/HALF_OPEN) en el endpoint DEV>>>
+![circuit with status close](./images-for-read-me/circuit-close.png)
+
+![circuit with status open](./images-for-read-me/circuit-open.png)
 
 ---
 
@@ -134,6 +138,8 @@ TENANT_ID=$(
 echo "TENANT_ID=$TENANT_ID"
 ```
 
+![Tenant created](./images-for-read-me/tenant-created.png)
+
 ### 1) Dev signup (crea usuario + token DEV)
 
 ```bash
@@ -145,16 +151,9 @@ TOKEN=$(
 )
 echo "TOKEN=$TOKEN"
 ```
+![User created](./images-for-read-me/create-user.png)
 
-### 2) Mock Gov API: modo ok
-
-```bash
-curl -s -X POST "http://localhost:3000/__mock/gov-api/mode" \
-  -H "content-type: application/json" \
-  -d '{"mode":"ok"}' >/dev/null
-```
-
-### 3) Crear job de gov-sync
+### 2) Crear job de gov-sync
 
 ```bash
 JOB_ID=$(
@@ -167,21 +166,8 @@ JOB_ID=$(
 echo "JOB_ID=$JOB_ID"
 ```
 
-### 4) Procesar job
+![Job created](./images-for-read-me/create-job-for-tenant.png)
 
-```bash
-curl -s -X POST "http://localhost:3000/tenants/$TENANT_ID/gov-sync/jobs/$JOB_ID/process" \
-  -H "authorization: Bearer $TOKEN" | cat
-```
-
-### 5) Ver estado del job
-
-```bash
-curl -s "http://localhost:3000/tenants/$TENANT_ID/gov-sync/jobs/$JOB_ID" \
-  -H "authorization: Bearer $TOKEN" | cat
-```
-
----
 
 ## Simular degradación y ver el circuit breaker
 
@@ -201,7 +187,11 @@ curl -s -X POST "http://localhost:3000/__mock/gov-api/mode" \
   -d '{"mode":"timeout"}' >/dev/null
 ```
 
-### 2) Reintentar /process y observar OPEN + fail-fast
+![setting mode fail](./images-for-read-me/mode-fail.png)
+
+Aqui simulamos que alguien en la dependencia de gobierno hizo un deploy, se empieza a saturar su sistema o empezo a fallar de repente
+
+### 2) empezamos procesamiento (/process) pero falla
 
 Tip: baja `GOV_API_CB_FAILURE_THRESHOLD` a `2` para que abra rápido.
 
@@ -212,16 +202,100 @@ curl -s -X POST "http://localhost:3000/tenants/$TENANT_ID/gov-sync/jobs/$JOB_ID/
   -H "authorization: Bearer $TOKEN" >/dev/null
 ```
 
-### 3) Consultar el estado del breaker (endpoint DEV)
+![circuit close but error received](./images-for-read-me/start-errors.png)
+
+### 3) observar OPEN + fail-fast 
+
+![circuit circuit open](./images-for-read-me/too-many-errors-open-circuit.png)
+
+Esto nos permite dejar de hacer invocaciones al servicio caido, permitiendo encolar en una DLQ para consecuente reconciliación
+
+### 4) poner mock en modo ok
+
+Simulamos que el sistema vuelve a funcionar ya sea pr un hotfix o se disponibilizaron recursos haciendo una peticion a: 
 
 ```bash
-curl -s "http://localhost:3000/tenants/$TENANT_ID/gov-sync/__dev/gov-api/circuit" \
-  -H "authorization: Bearer $TOKEN" | cat
+curl -s -X POST "http://localhost:3000/__mock/gov-api/mode" \
+  -H "content-type: application/json" \
+  -d '{"mode":"ok"}' >/dev/null
 ```
 
-<<<captura de pantalla de /tenants/:tenantId/gov-sync/__dev/gov-api/circuit mostrando OPEN/HALF_OPEN/CLOSED>>>
+![circuit circuit open](./images-for-read-me/set-mode-ok.png)
+
+
+### 4) re-try y funciona
+
+Se deja enfriar el circuito, por un delay, cuando este esta frio, el sistema circuito se pone en half open, permite hacer n cantidad de llamados, si funcionan el sistema vueve a estar cerrado, si empiezan a fallar se abre de nuevo
+
+![circuit circuit open](./images-for-read-me/
+works-correctly-with-half-open.png)
+
 
 ---
+
+## RBAC + Aislamiento multi-tenant (MVP)
+
+Este repo es un MVP y NO implementa auth productiva. En su lugar, usa un Dev Token simple (para testing) y guards para demostrar:
+- **Autenticación**: token presente, parseable y registrado en store.
+- **RBAC**: acciones restringidas por rol.
+- **Aislamiento multi-tenant**: un token de un tenant no puede operar sobre otro.
+
+### Dev Token (solo para testing)
+
+El token que entrega `/auth/signup` y `/auth/login` tiene el formato:
+
+`DEV.v1.Tenant.{tenantId}.{userId}.{role}.{timestamp}`
+
+En cada request autenticado:
+- `DevTokenGuard` (guard global) valida `Authorization: Bearer <token>`.
+- Se parsea el token y se adjunta `authUser` al request con: `tenantId`, `userId`, `role`.
+- Además, el token debe existir en la tabla de tokens (se registra en login/signup). Si no existe, se rechaza.
+
+> Nota: esto es deliberadamente simple para la demo; no hay firma, expiración JWT, refresh tokens, etc.
+
+### Roles disponibles
+
+Los roles del MVP son:
+- `ADMIN`
+- `PRINCIPAL`
+- `TEACHER`
+
+### Aislamiento por tenant (TenantParamGuard)
+
+En los endpoints con path `/tenants/:tenantId/...`, el `TenantParamGuard` compara:
+- `tenantId` del token (claim)
+- vs `tenantId` del path param
+
+Si no coinciden, responde **403** con `Tenant mismatch` (esto es lo que se ve en Bruno cuando intentas llamar un endpoint de tenant con un token de otro tenant).
+
+![rbac bruno](./images-for-read-me/
+rbac-error.png)
+
+### Acciones ADMIN-only (AdminRoleGuard)
+
+Algunas operaciones están restringidas a `ADMIN`:
+- `POST /tenants/:tenantId/gov-sync/jobs` (crear job)
+- `POST /tenants/:tenantId/gov-sync/jobs/:jobId/process` (procesar job)
+- Endpoints de desarrollo del cliente gov:
+  - `/tenants/:tenantId/gov-sync/__dev/gov-api/*` (send batch, ver circuit, etc.)
+
+Las lecturas “no destructivas” del job (p.ej. `GET /tenants/:tenantId/gov-sync/jobs/:jobId`) solo requieren pertenecer al mismo tenant.
+
+
+### Ejemplo rápido (reproducir Tenant mismatch)
+
+```bash
+# Token emitido para tenantId=2
+OTHER_TOKEN="DEV.v1.Tenant.2.9.ADMIN.173...."
+
+# Intento de crear job en tenantId=1 con token de tenantId=2 => 403 Tenant mismatch
+curl -i -X POST "http://localhost:3000/tenants/1/gov-sync/jobs" \
+  -H "authorization: Bearer $OTHER_TOKEN" \
+  -H "content-type: application/json" \
+  -d '{"periodId":"2025-Q1"}'
+```
+![user with out no permissions](./images-for-read-me/
+token-with-no-permission.png)
 
 ## Bruno (colección lista para usar)
 
@@ -248,9 +322,14 @@ Requests clave (archivos `.bru`):
   - `collection-luca/gov-sync/mock-gov-api/set mode fail.bru`
   - `collection-luca/gov-sync/mock-gov-api/set mode timeout.bru`
 
-<<<captura de pantalla de Bruno: importar carpeta collection-luca y ejecutar create job / trigger processing>>>
-
 ---
+
+## CI/CD y Deploy
+
+- **CI/CD**: el proyecto cuenta con un pipeline funcional en GitHub Actions: `https://github.com/hitzu/luca-home-assessment/actions`
+- **Deploy (prod)**: está deployado en Render (plan gratuito), por lo que puede haber límites/cold-starts y mayor tiempo de respuesta; aun así es **100% testeable en producción**.
+
+El base url es: https://luca-home-assessment.onrender.com
 
 ## Tests
 
@@ -261,10 +340,5 @@ pnpm test:e2e
 ```
 
 Notas:
-- En tests se usa `NODE_ENV=test` automáticamente (scripts), con DB `luca_test` (puerto `57433`) y `dropSchema` habilitado.
+- En tests se usa `NODE_ENV=test` automáticamente (scripts), con DB `luca_test` (puerto `57433`) y `dropSchema` habilitado buscando test isolation.
 
----
-
-## ¿Se entiende el propósito del MVP?
-
-Sí: el MVP está diseñado para demostrar (de forma verificable) la parte más “riesgosa” del assessment: **integración externa resiliente** (idempotencia/retries/limitación + protección operativa con circuit breaker) sin perder trazabilidad ni multi-tenancy.

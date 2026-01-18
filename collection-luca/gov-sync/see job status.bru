@@ -1,12 +1,12 @@
 meta {
-  name: trigger processing
+  name: see job status
   type: http
-  seq: 3
+  seq: 4
 }
 
-post {
-  url: {{baseUrl}}/tenants/1/gov-sync/jobs/9/process
-  body: none
+get {
+  url: {{baseUrl}}/tenants/1/gov-sync/jobs/1
+  body: json
   auth: inherit
 }
 
